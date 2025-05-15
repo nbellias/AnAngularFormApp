@@ -1,0 +1,77 @@
+<div class="container mt-5">
+  <h2>Contact Form</h2>
+  <form [formGroup]="contactForm" (ngSubmit)="onSubmit()" aria-labelledby="contactFormHeading">
+    <h2 id="contactFormHeading" class="visually-hidden">Contact Submission Form</h2>
+    <div class="mb-3">
+      <label for="username" class="form-label">Username</label>
+      <input type="text" id="username" formControlName="username" class="form-control"
+             [ngClass]="{ 'is-invalid': submitted && f['username'].errors }"
+             aria-required="true" [attr.aria-describedby]="(submitted && f['username'].errors) ? 'usernameErrors' : null">
+      <div *ngIf="submitted && f['username'].errors" class="invalid-feedback" id="usernameErrors">
+        <div *ngIf="f['username'].errors['required']">Username is required.</div>
+        <div *ngIf="f['username'].errors['minlength']">Username must be at least 3 characters.</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="email" class="form-label">Email</label>
+      <input type="email" id="email" formControlName="email" class="form-control"
+             [ngClass]="{ 'is-invalid': submitted && f['email'].errors }"
+             aria-required="true" [attr.aria-describedby]="(submitted && f['email'].errors) ? 'emailErrors' : null">
+      <div *ngIf="submitted && f['email'].errors" class="invalid-feedback" id="emailErrors">
+        <div *ngIf="f['email'].errors['required']">Email is required.</div>
+        <div *ngIf="f['email'].errors['email']">Email is invalid.</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" id="password" formControlName="password" class="form-control"
+             [ngClass]="{ 'is-invalid': submitted && f['password'].errors }"
+             aria-required="true" [attr.aria-describedby]="(submitted && f['password'].errors) ? 'passwordErrors' : null">
+      <div *ngIf="submitted && f['password'].errors" class="invalid-feedback" id="passwordErrors">
+        <div *ngIf="f['password'].errors['required']">Password is required.</div>
+        <div *ngIf="f['password'].errors['minlength']">Password must be at least 8 characters.</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="address" class="form-label">Address</label>
+      <textarea id="address" formControlName="address" class="form-control"
+                [ngClass]="{ 'is-invalid': submitted && f['address'].errors }"
+                aria-required="true" [attr.aria-describedby]="(submitted && f['address'].errors) ? 'addressErrors' : null"></textarea>
+      <div *ngIf="submitted && f['address'].errors" class="invalid-feedback" id="addressErrors">
+        <div *ngIf="f['address'].errors['required']">Address is required.</div>
+        <div *ngIf="f['address'].errors['minlength']">Address must be at least 10 characters.</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="phone" class="form-label">Phone (Optional)</label>
+      <input type="tel" id="phone" formControlName="phone" class="form-control"
+             [ngClass]="{ 'is-invalid': submitted && f['phone'].errors }"
+             [attr.aria-describedby]="(submitted && f['phone'].errors) ? 'phoneErrors' : null">
+      <div *ngIf="submitted && f['phone'].errors" class="invalid-feedback" id="phoneErrors">
+        <div *ngIf="f['phone'].errors['pattern']">Please enter a valid phone number.</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="comment" class="form-label">Comment (Optional)</label>
+      <textarea id="comment" formControlName="comment" class="form-control"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2" [disabled]="contactForm.invalid">
+      {{ editMode ? 'Update Contact' : 'Submit' }}
+    </button>
+    <button type="button" class="btn btn-secondary me-2" (click)="resetForm()">
+      {{ editMode ? 'Clear Changes' : 'Reset Form' }}
+    </button>
+    <button *ngIf="editMode" type="button" class="btn btn-light" (click)="cancelEdit()">Cancel Edit</button>
+  </form>
+
+  <div *ngIf="submissionMessage" class="alert mt-3"
+       [ngClass]="{'alert-success': submissionMessage && !submissionMessage.toLowerCase().includes('error'), 'alert-danger': submissionMessage && submissionMessage.toLowerCase().includes('error')}">
+    {{ submissionMessage }}
+  </div>
+</div>

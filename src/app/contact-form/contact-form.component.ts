@@ -1,7 +1,28 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { StorageService, Contact } from '../storage.service';
+
+// Custom Validator for matching passwords
+export function passwordsMatchValidator(control: AbstractControl): ValidationErrors | null {
+  const password = control.get('password');
+  const passwordAgain = control.get('passwordAgain');
+
+  if (password && passwordAgain && password.value !== passwordAgain.value) {
+    // Preserve other errors on passwordAgain when adding passwordsMismatch
+    passwordAgain.setErrors({ ...passwordAgain.errors, passwordsMismatch: true });
+    return { passwordsMismatch: true };
+  } else if (passwordAgain) {
+    // Clear only the mismatch error if they do match, or if one field is considered irrelevant
+    let errors = passwordAgain.errors;
+    if (errors && errors['passwordsMismatch']) {
+      delete errors['passwordsMismatch'];
+      if (Object.keys(errors).length === 0) errors = null;
+    }
+    passwordAgain.setErrors(errors);
+  }
+  return null;
+}
 
 @Component({
   selector: 'app-contact-form',
@@ -32,16 +53,29 @@ export class ContactFormComponent implements OnInit {
     this.contactForm = this.fb.group({
       username: [contactToEdit?.username || '', [Validators.required, Validators.minLength(3)]],
       email: [contactToEdit?.email || '', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(8)]], // Password always blank for edit, not pre-filled
+      password: ['', this.editMode ? [Validators.minLength(8)] : [Validators.required, Validators.minLength(8)]],
+      passwordAgain: ['', this.editMode ? [] : [Validators.required, Validators.minLength(8)]],
       address: [contactToEdit?.address || '', [Validators.required, Validators.minLength(10)]],
       phone: [contactToEdit?.phone || '', [Validators.pattern('^[+]?[0-9]{10,13}$')]],
       comment: [contactToEdit?.comment || '']
-    });
-    // If editing, password validation might not be strictly required or could be optional
-    // For now, keeping it required. Could be adjusted based on exact UX needs.
+    }, { validators: passwordsMatchValidator });
+
     if (this.editMode) {
-        this.contactForm.get('password')?.clearValidators();
-        this.contactForm.get('password')?.updateValueAndValidity();
+      // In edit mode, password fields are optional. If user starts typing in password, then passwordAgain becomes required.
+      this.contactForm.get('password')?.valueChanges.subscribe(value => {
+        const passwordAgainControl = this.contactForm.get('passwordAgain');
+        if (value) {
+          passwordAgainControl?.setValidators([Validators.required, Validators.minLength(8)]);
+        } else {
+          passwordAgainControl?.clearValidators();
+        }
+        passwordAgainControl?.updateValueAndValidity();
+      });
+       this.contactForm.get('password')?.clearValidators();
+       this.contactForm.get('password')?.setValidators([Validators.minLength(8)]); // MinLength if provided
+       this.contactForm.get('password')?.updateValueAndValidity();
+       this.contactForm.get('passwordAgain')?.clearValidators();
+       this.contactForm.get('passwordAgain')?.updateValueAndValidity();
     }
   }
 
@@ -57,7 +91,14 @@ export class ContactFormComponent implements OnInit {
     this.submissionMessage = null;
 
     if (this.contactForm.invalid) {
-      return;
+      // Check if the only error is passwordsMismatch on passwordAgain when password is empty (for edit mode)
+      const passwordControl = this.contactForm.get('password');
+      const passwordAgainControl = this.contactForm.get('passwordAgain');
+      if (this.editMode && !passwordControl?.value && passwordAgainControl?.hasError('passwordsMismatch')) {
+        // This specific case can be ignored if password is not being changed
+      } else {
+        return;
+      }
     }
 
     let result;
@@ -65,20 +106,28 @@ export class ContactFormComponent implements OnInit {
 
     if (this.editMode && this.editingContact) {
       const updatedContact: Contact = {
-        ...this.editingContact, // Retain original createdAt and other non-form fields
+        ...this.editingContact, 
         username: formValue.username,
         email: formValue.email,
         address: formValue.address,
-        phone: formValue.phone || undefined, // Ensure optional fields are undefined if empty
+        phone: formValue.phone || undefined,
         comment: formValue.comment || undefined,
+        // Password is only updated if a new password is provided
+        // The storage service handles keeping the old one if formValue.password is empty/undefined
+        password: formValue.password || undefined 
       };
-      // If password field has a value, include it, otherwise don't send password for update if blank
-      if (formValue.password) {
-        updatedContact.password = formValue.password;
-      }
       result = this.storageService.update(updatedContact);
     } else {
-      result = this.storageService.save(formValue);
+      // For new contact, password is required by form validators
+      const contactToSave: Omit<Contact, 'createdAt'> = {
+        username: formValue.username,
+        email: formValue.email,
+        password: formValue.password, // Will be encoded by service
+        address: formValue.address,
+        phone: formValue.phone || undefined,
+        comment: formValue.comment || undefined,
+      };
+      result = this.storageService.save(contactToSave);
     }
 
     if (result.success) {
@@ -91,14 +140,25 @@ export class ContactFormComponent implements OnInit {
   }
 
   resetForm(): void {
+    const wasEditMode = this.editMode;
     this.contactForm.reset();
     this.submitted = false;
     this.submissionMessage = null;
     this.editMode = false;
     this.editingContact = null;
-    // Re-apply password validators if they were cleared
+    
+    // Re-apply initial validators
     this.contactForm.get('password')?.setValidators([Validators.required, Validators.minLength(8)]);
     this.contactForm.get('password')?.updateValueAndValidity();
+    this.contactForm.get('passwordAgain')?.setValidators([Validators.required]);
+    this.contactForm.get('passwordAgain')?.updateValueAndValidity();
+
+    // If it *was* edit mode and now it's reset to a new form, ensure password is required
+    // If it was reset *from* edit mode (e.g. cancel edit), it needs to be a "new form" state
+    // The initializeForm call with no args effectively does this, but let's be explicit for password
+    if (wasEditMode) {
+        this.initializeForm(); // Re-initialize to non-edit state
+    }
   }
 
   cancelEdit(): void {

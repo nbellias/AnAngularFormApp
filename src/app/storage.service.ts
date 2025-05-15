@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 export interface Contact {
   username: string;
   email: string;
-  password?: string; // Password should not be stored, but is part of form
+  password?: string; // Password will now be stored (encoded)
   address: string;
   phone?: string;
   comment?: string;
@@ -37,18 +37,20 @@ export class StorageService {
 
     const newContact: Contact = {
       ...contactData,
+      // Encode password if provided
+      password: contactData.password ? btoa(contactData.password) : undefined,
       createdAt: new Date().toISOString()
     };
     
-    const { password, ...contactToSave } = newContact;
-    contacts.push(contactToSave as Contact);
+    // const { password, ...contactToSave } = newContact; // Password is now part of contactToSave
+    contacts.push(newContact); // newContact already has password potentially encoded
     this.saveContacts(contacts);
     return { success: true };
   }
 
-  update(updatedContact: Contact): { success: boolean; error?: string } {
+  update(updatedContactData: Contact): { success: boolean; error?: string } {
     let contacts = this.getContacts();
-    const index = contacts.findIndex(c => c.createdAt === updatedContact.createdAt);
+    const index = contacts.findIndex(c => c.createdAt === updatedContactData.createdAt);
 
     if (index === -1) {
       return { success: false, error: 'Contact not found for update.' };
@@ -56,14 +58,28 @@ export class StorageService {
 
     // Check for duplicates, excluding the contact being updated from the check
     if (contacts.some(c => 
-        (c.email === updatedContact.email || c.username === updatedContact.username) && 
-        c.createdAt !== updatedContact.createdAt
+        (c.email === updatedContactData.email || c.username === updatedContactData.username) && 
+        c.createdAt !== updatedContactData.createdAt
     )) {
       return { success: false, error: 'Update would cause a duplicate email or username.' };
     }
     
-    const { password, ...contactToSave } = updatedContact;
-    contacts[index] = contactToSave as Contact;
+    const existingContact = contacts[index];
+    let passwordToStore: string | undefined;
+
+    if (updatedContactData.password && updatedContactData.password.trim() !== '') {
+      // New password provided, encode it
+      passwordToStore = btoa(updatedContactData.password);
+    } else {
+      // No new password provided, keep the existing one
+      passwordToStore = existingContact.password;
+    }
+
+    contacts[index] = {
+      ...updatedContactData,
+      password: passwordToStore
+    };
+    
     this.saveContacts(contacts);
     return { success: true };
   }

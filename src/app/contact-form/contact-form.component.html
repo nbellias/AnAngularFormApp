@@ -36,11 +36,28 @@
     </div>
 
     <div class="mb-3">
+      <label for="passwordAgain" class="form-label">Confirm Password</label>
+      <input type="password" id="passwordAgain" formControlName="passwordAgain" class="form-control"
+             [ngClass]="{ 'is-invalid': (submitted && f['passwordAgain'].errors) || (f['passwordAgain'].touched && f['passwordAgain'].errors) }"
+             aria-required="true" 
+             [attr.aria-describedby]="((submitted || f['passwordAgain'].touched) && f['passwordAgain'].errors) ? 'passwordAgainErrors' : null">
+      <div *ngIf="(submitted || f['passwordAgain'].touched) && f['passwordAgain'].errors" class="invalid-feedback" id="passwordAgainErrors">
+        <div *ngIf="f['passwordAgain'].errors['required']">Confirming password is required.</div>
+        <div *ngIf="f['passwordAgain'].errors['minlength']">Password must be at least 8 characters.</div>
+        <div *ngIf="f['passwordAgain'].errors['passwordsMismatch']">Passwords do not match.</div>
+      </div>
+      <!-- Overall form error for password mismatch -->
+      <div *ngIf="contactForm.errors?.['passwordsMismatch'] && (f['password'].touched || f['passwordAgain'].touched)" class="invalid-feedback d-block">
+        Passwords do not match.
+      </div>
+    </div>
+
+    <div class="mb-3">
       <label for="address" class="form-label">Address</label>
       <textarea id="address" formControlName="address" class="form-control"
-                [ngClass]="{ 'is-invalid': submitted && f['address'].errors }"
-                aria-required="true" [attr.aria-describedby]="(submitted && f['address'].errors) ? 'addressErrors' : null"></textarea>
-      <div *ngIf="submitted && f['address'].errors" class="invalid-feedback" id="addressErrors">
+                [ngClass]="{ 'is-invalid': (submitted || f['address'].touched) && f['address'].errors }"
+                aria-required="true" [attr.aria-describedby]="((submitted || f['address'].touched) && f['address'].errors) ? 'addressErrors' : null"></textarea>
+      <div *ngIf="(submitted || f['address'].touched) && f['address'].errors" class="invalid-feedback" id="addressErrors">
         <div *ngIf="f['address'].errors['required']">Address is required.</div>
         <div *ngIf="f['address'].errors['minlength']">Address must be at least 10 characters.</div>
       </div>
